@@ -7,6 +7,13 @@ class MinesweeperGUI:
         self.height = height
         self.width = width
         self.mines = mines
+        self._game_end = False
+        self.episode_moves = []
+        self.episode_moves_label = tk.Label(
+            self.root, text='', justify=tk.LEFT)
+        self.episode_moves_label.grid(
+            row=0, column=self.width+1, rowspan=self.height, sticky=tk.N + tk.S + tk.E + tk.W)
+
         self.board = self.generate_board()
         self.root = tk.Tk()
         self.root.title("Minesweeper")
@@ -70,7 +77,9 @@ class MinesweeperGUI:
         self.update_board()
 
         # Check if the game has ended (win or lose)
-        if self.game_end:
+        if self.check_win() or self.board[row][col] == "*":
+            self._game_end = True
+
             # Show the mines
             for i in range(self.height):
                 for j in range(self.width):
@@ -146,6 +155,7 @@ class MinesweeperGUI:
         for row in self.buttons:
             for button in row:
                 button.destroy()
+        self._game_end = False
 
         # Reset the move counter and update the label
         self.move_counter = 0
@@ -155,8 +165,24 @@ class MinesweeperGUI:
         self.round_counter += 1
         self.round_label.config(text=f'Round: {self.round_counter}')
 
+        # Update the episode_moves_label text
+        self.episode_moves.append(self.move_counter)
+        episode_moves_text = '\n'.join(
+            [f'Episode {i + 1}: {moves}' for i, moves in enumerate(self.episode_moves)])
+        self.episode_moves_label.config(text=episode_moves_text)
+
         # Create a new board
-        self.create_board()
+        self.board = self.generate_board()
+
+        # Recreate the buttons
+        self.buttons = [
+            [tk.Button(self.root, text='', command=lambda row=i, col=j: self.on_button_click(row, col))
+             for j in range(self.width)] for i in range(self.height)]
+
+        for i in range(self.height):
+            for j in range(self.width):
+                self.buttons[i][j].grid(
+                    row=i, column=j, sticky=tk.N + tk.S + tk.E + tk.W)
 
     def check_win(self):
         non_mine_cells = self.height * self.width - self.mines
@@ -164,27 +190,34 @@ class MinesweeperGUI:
 
     @property
     def game_end(self):
-        return self.check_win() or any(cell == "*" for row in self.revealed_cells for cell in row)
+        return self._game_end
 
     def run(self):
         self.root.mainloop()
 
     def play_agent(self):
-        while not self.game_end:
-            valid_action = False
-            while not valid_action:
-                action = self.agent.choose_action(self.get_current_state())
-                game_over, reward, next_state = self.perform_action(action)
-                if self.buttons[action[0]][action[1]]['state'] == tk.DISABLED:
-                    valid_action = True
-                else:
-                    valid_action = False
+        while True:  # Change the outer loop condition to True
+            while not self.game_end:
+                valid_action = False
+                while not valid_action:
+                    action = self.agent.choose_action(self.get_current_state())
+                    game_over, reward, next_state = self.perform_action(action)
+                    if self.buttons[action[0]][action[1]]['state'] == tk.DISABLED:
+                        valid_action = True
+                    else:
+                        valid_action = False
+                        reward = -0.1  # Provide a small negative reward for invalid actions
 
-            self.agent.update(self.get_current_state(), action,
-                              next_state, reward, game_over)
-            # Remove the extra increment of the move counter
-            # self.move_counter += 1  # Increment the move counter
-            # Update the move label
-            self.move_label.config(text=f'Moves: {self.move_counter}')
-            self.root.update()
-            self.root.after(100)  # 100 milliseconds delay
+                    if valid_action:
+                        self.move_counter += 1  # Increment the move counter only for valid actions
+
+                self.agent.update(self.get_current_state(), action,
+                                  next_state, reward, game_over)
+                # Update the move label
+                self.move_label.config(text=f'Moves: {self.move_counter}')
+                self.root.update()
+                self.root.after(100)  # 100 milliseconds delay
+
+            # Reset the game when the game ends
+            self.reset_board()
+            self.revealed_cells.clear()
