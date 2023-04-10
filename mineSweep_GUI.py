@@ -16,35 +16,31 @@ class MinesweeperGUI:
         self.agent = agent
         self.revealed_cells = set()
 
-        # Create a canvas with a fixed size and add the episode_moves_label inside it
-        self.canvas = tk.Canvas(self.root, width=1020, height=900)
+        self.canvas = tk.Canvas(self.root)
         self.canvas.grid(row=0, column=self.width+1,
                          rowspan=self.height, sticky=tk.N + tk.S + tk.E + tk.W)
 
-        self.episode_moves_label = tk.Label(
-            self.canvas, text='', justify=tk.LEFT)
-        self.episode_moves_label.pack()
-
-        # Create a scrollbar and attach it to the canvas
         self.scrollbar = tk.Scrollbar(self.root, command=self.canvas.yview)
         self.scrollbar.grid(row=0, column=self.width+2,
                             rowspan=self.height, sticky=tk.N + tk.S)
 
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-
-        # Bind the scroll function to the canvas
         self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
 
-        self.buttons = [
-            [tk.Button(self.root, text='', command=lambda row=i, col=j: self.on_button_click(row, col), width=3, height=1)
-             for j in range(self.width)] for i in range(self.height)]
+        self.frame = tk.Frame(self.canvas)
+        self.canvas.create_window((0, 0), window=self.frame, anchor=tk.NW)
 
+        self.episode_moves_label = tk.Label(
+            self.frame, text='', justify=tk.LEFT)
+        self.episode_moves_label.pack()
+
+        self.buttons = [
+            [tk.Button(self.root, text='', command=lambda row=i, col=j: self.on_button_click(row, col), width=2, height=1, font=("Arial", 10))
+             for j in range(self.width)] for i in range(self.height)]
         for i in range(self.height):
             for j in range(self.width):
                 self.buttons[i][j].grid(row=i, column=j)
-                self.root.grid_columnconfigure(
-                    j, weight=0, minsize=0)  # Disable column resizing
+                self.root.grid_columnconfigure(j, weight=0, minsize=0)
                 self.root.grid_rowconfigure(i, weight=0, minsize=0)
 
         self.move_counter = 0
@@ -60,6 +56,12 @@ class MinesweeperGUI:
         self.play_agent()
 
         self.run()
+
+    # The rest of the code remains unchanged
+
+    # Add this method to update the canvas scrollregion
+    def update_scrollregion(self):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
     def generate_board(self):
         board = [[0 for _ in range(self.width)] for _ in range(self.height)]
@@ -87,7 +89,8 @@ class MinesweeperGUI:
                 board[row][col] = mines_count
 
         return board
-
+    def _on_mousewheel(self, event):
+        self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
     def on_button_click(self, row, col):
         # Reveal the clicked button and its adjacent cells if needed
         self.reveal_cell(row, col)
@@ -112,10 +115,6 @@ class MinesweeperGUI:
                     self.buttons[i][j].config(state="disabled")
             self.root.update()
             self.root.after(100)  # 100 milliseconds delay
-
-    def toggle_fullscreen(self):
-        self.is_fullscreen = not self.is_fullscreen
-        self.root.attributes('-fullscreen', self.is_fullscreen)
 
     def reveal_cell(self, row, col):
 
@@ -187,6 +186,7 @@ class MinesweeperGUI:
 
         # Update the episode_moves_label text
         self.episode_moves.append(self.move_counter)
+        self.update_episode_moves_label()
 
         # Reset the move counter and update the label
         self.move_counter = 0
@@ -195,10 +195,6 @@ class MinesweeperGUI:
         # Increment the round counter and update the round label
         self.round_counter += 1
         self.round_label.config(text=f'Round: {self.round_counter}')
-
-        episode_moves_text = '\n'.join(
-            [f'Episode {i + 1}: {moves}' for i, moves in enumerate(self.episode_moves)])
-        self.episode_moves_label.config(text=episode_moves_text)
 
         # Create a new board
         self.board = self.generate_board()
@@ -213,12 +209,17 @@ class MinesweeperGUI:
                 self.buttons[i][j].grid(
                     row=i, column=j, sticky=tk.N + tk.S + tk.E + tk.W)
 
+    def update_episode_moves_label(self):
+        episode_moves_text = '\n'.join(
+            [f'Episode {i + 1}: {moves}' for i, moves in enumerate(self.episode_moves)])
+        self.episode_moves_label.config(text=episode_moves_text)
+        # Update the scrollregion
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        self.frame.update_idletasks()
+
     def check_win(self):
         non_mine_cells = self.height * self.width - self.mines
         return len(self.revealed_cells) == non_mine_cells
-
-    def _on_mousewheel(self, event):
-        self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
 
     @property
     def game_end(self):
