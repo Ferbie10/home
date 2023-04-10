@@ -9,16 +9,34 @@ class MinesweeperGUI:
         self.mines = mines
         self._game_end = False
         self.episode_moves = []
-        self.episode_moves_label = tk.Label(
-            self.root, text='', justify=tk.LEFT)
-        self.episode_moves_label.grid(
-            row=0, column=self.width+1, rowspan=self.height, sticky=tk.N + tk.S + tk.E + tk.W)
 
         self.board = self.generate_board()
         self.root = tk.Tk()
         self.root.title("Minesweeper")
+        # Make the window full screen
+        self.root.attributes('-fullscreen', True)
         self.agent = agent
         self.revealed_cells = set()
+
+        # Create a canvas and add the episode_moves_label inside it
+        self.canvas = tk.Canvas(self.root)
+        self.canvas.grid(row=0, column=self.width+1,
+                         rowspan=self.height, sticky=tk.N + tk.S + tk.E + tk.W)
+
+        self.episode_moves_label = tk.Label(
+            self.canvas, text='', justify=tk.LEFT)
+        self.episode_moves_label.pack()
+
+        # Create a scrollbar and attach it to the canvas
+        self.scrollbar = tk.Scrollbar(self.root, command=self.canvas.yview)
+        self.scrollbar.grid(row=0, column=self.width+2,
+                            rowspan=self.height, sticky=tk.N + tk.S)
+
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+        # Bind the scroll function to the canvas
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
 
         self.buttons = [
             [tk.Button(self.root, text='', command=lambda row=i, col=j: self.on_button_click(row, col))
@@ -27,6 +45,21 @@ class MinesweeperGUI:
             for j in range(self.width):
                 self.buttons[i][j].grid(
                     row=i, column=j, sticky=tk.N + tk.S + tk.E + tk.W)
+        self.exit_button = tk.Button(
+            self.root, text="Exit", command=self.root.quit)
+        self.exit_button.grid(
+            row=self.height+1, column=self.width-1, sticky=tk.E)
+
+        self.minimize_button = tk.Button(
+            self.root, text="Minimize", command=self.root.iconify)
+        self.minimize_button.grid(
+            row=self.height+1, column=self.width-2, sticky=tk.E)
+
+        self.is_fullscreen = True
+        self.resize_button = tk.Button(
+            self.root, text="Resize", command=self.toggle_fullscreen)
+        self.resize_button.grid(
+            row=self.height+1, column=self.width-3, sticky=tk.E)
 
         self.move_counter = 0
         self.move_label = tk.Label(
@@ -93,6 +126,10 @@ class MinesweeperGUI:
                     self.buttons[i][j].config(state="disabled")
             self.root.update()
             self.root.after(100)  # 100 milliseconds delay
+
+    def toggle_fullscreen(self):
+        self.is_fullscreen = not self.is_fullscreen
+        self.root.attributes('-fullscreen', self.is_fullscreen)
 
     def reveal_cell(self, row, col):
 
@@ -187,6 +224,9 @@ class MinesweeperGUI:
     def check_win(self):
         non_mine_cells = self.height * self.width - self.mines
         return len(self.revealed_cells) == non_mine_cells
+
+    def _on_mousewheel(self, event):
+        self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
 
     @property
     def game_end(self):
