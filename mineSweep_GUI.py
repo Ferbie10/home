@@ -13,13 +13,11 @@ class MinesweeperGUI:
         self.board = self.generate_board()
         self.root = tk.Tk()
         self.root.title("Minesweeper")
-        # Make the window full screen
-        self.root.attributes('-fullscreen', True)
         self.agent = agent
         self.revealed_cells = set()
 
-        # Create a canvas and add the episode_moves_label inside it
-        self.canvas = tk.Canvas(self.root)
+        # Create a canvas with a fixed size and add the episode_moves_label inside it
+        self.canvas = tk.Canvas(self.root, width=1020, height=900)
         self.canvas.grid(row=0, column=self.width+1,
                          rowspan=self.height, sticky=tk.N + tk.S + tk.E + tk.W)
 
@@ -39,27 +37,15 @@ class MinesweeperGUI:
         self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
 
         self.buttons = [
-            [tk.Button(self.root, text='', command=lambda row=i, col=j: self.on_button_click(row, col))
+            [tk.Button(self.root, text='', command=lambda row=i, col=j: self.on_button_click(row, col), width=3, height=1)
              for j in range(self.width)] for i in range(self.height)]
+
         for i in range(self.height):
             for j in range(self.width):
-                self.buttons[i][j].grid(
-                    row=i, column=j, sticky=tk.N + tk.S + tk.E + tk.W)
-        self.exit_button = tk.Button(
-            self.root, text="Exit", command=self.root.quit)
-        self.exit_button.grid(
-            row=self.height+1, column=self.width-1, sticky=tk.E)
-
-        self.minimize_button = tk.Button(
-            self.root, text="Minimize", command=self.root.iconify)
-        self.minimize_button.grid(
-            row=self.height+1, column=self.width-2, sticky=tk.E)
-
-        self.is_fullscreen = True
-        self.resize_button = tk.Button(
-            self.root, text="Resize", command=self.toggle_fullscreen)
-        self.resize_button.grid(
-            row=self.height+1, column=self.width-3, sticky=tk.E)
+                self.buttons[i][j].grid(row=i, column=j)
+                self.root.grid_columnconfigure(
+                    j, weight=0, minsize=0)  # Disable column resizing
+                self.root.grid_rowconfigure(i, weight=0, minsize=0)
 
         self.move_counter = 0
         self.move_label = tk.Label(
@@ -187,12 +173,20 @@ class MinesweeperGUI:
                     self.buttons[i][j].config(
                         text=self.board[i][j], state=tk.DISABLED)
 
+    def update_episode_moves_label(self):
+        episode_moves_text = '\n'.join(
+            [f'Episode {i + 1}: {moves}' for i, moves in enumerate(self.episode_moves)])
+        self.episode_moves_label.config(text=episode_moves_text)
+
     def reset_board(self):
         # Destroy all the buttons
         for row in self.buttons:
             for button in row:
                 button.destroy()
         self._game_end = False
+
+        # Update the episode_moves_label text
+        self.episode_moves.append(self.move_counter)
 
         # Reset the move counter and update the label
         self.move_counter = 0
@@ -202,8 +196,6 @@ class MinesweeperGUI:
         self.round_counter += 1
         self.round_label.config(text=f'Round: {self.round_counter}')
 
-        # Update the episode_moves_label text
-        self.episode_moves.append(self.move_counter)
         episode_moves_text = '\n'.join(
             [f'Episode {i + 1}: {moves}' for i, moves in enumerate(self.episode_moves)])
         self.episode_moves_label.config(text=episode_moves_text)
