@@ -70,3 +70,7 @@ class MinesweeperAgent:
     def load(self, filename):
         # Load the Q-table from a file
         self.q_table = np.load(filename)
+
+    def update(self, state, action, next_state, reward, game_over):
+        self.learn(state, action, reward, next_state)
+        self.decay_exploration_rate()

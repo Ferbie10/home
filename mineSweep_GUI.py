@@ -31,6 +31,9 @@ class MinesweeperGUI:
             self.root, text=f'Round: {self.round_counter}')
         self.round_label.grid(row=self.height, column=5,
                               columnspan=self.width, sticky=tk.E)
+        self.play_agent()
+
+        self.run()
 
     def generate_board(self):
         board = [[0 for _ in range(self.width)] for _ in range(self.height)]
@@ -79,6 +82,8 @@ class MinesweeperGUI:
             for i in range(self.height):
                 for j in range(self.width):
                     self.buttons[i][j].config(state="disabled")
+            self.root.update()
+            self.root.after(100)  # 100 milliseconds delay
 
     def reveal_cell(self, row, col):
 
@@ -161,3 +166,12 @@ class MinesweeperGUI:
 
     def run(self):
         self.root.mainloop()
+
+    def play_agent(self):
+        while not self.game_end:
+            action = self.agent.choose_action(self.get_current_state())
+            game_over, reward, next_state = self.perform_action(action)
+            self.agent.update(self.get_current_state(), action,
+                              next_state, reward, game_over)
+            self.root.update()
+            self.root.after(100)  # 100 milliseconds delay
