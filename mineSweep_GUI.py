@@ -115,7 +115,9 @@ class MinesweeperGUI:
         row, col, action_type = action
 
         if action_type == 0:  # Reveal
-            self.on_button_click(row, col)
+            if self.buttons[row][col]['state'] in (tk.NORMAL, tk.ACTIVE):
+                self.on_button_click(row, col)
+                self.move_counter += 1  # Increment the move counter only for valid reveal actions
         elif action_type == 1:  # Flag (skip this action for now)
             pass
 
@@ -169,9 +171,20 @@ class MinesweeperGUI:
 
     def play_agent(self):
         while not self.game_end:
-            action = self.agent.choose_action(self.get_current_state())
-            game_over, reward, next_state = self.perform_action(action)
+            valid_action = False
+            while not valid_action:
+                action = self.agent.choose_action(self.get_current_state())
+                game_over, reward, next_state = self.perform_action(action)
+                if self.buttons[action[0]][action[1]]['state'] == tk.DISABLED:
+                    valid_action = True
+                else:
+                    valid_action = False
+
             self.agent.update(self.get_current_state(), action,
                               next_state, reward, game_over)
+            # Remove the extra increment of the move counter
+            # self.move_counter += 1  # Increment the move counter
+            # Update the move label
+            self.move_label.config(text=f'Moves: {self.move_counter}')
             self.root.update()
             self.root.after(100)  # 100 milliseconds delay
