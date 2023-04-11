@@ -13,6 +13,8 @@ class Minesweeper_GUI:
         self.height = height
         self.width = width
         self.mines = mines
+        self.revealed_cells = set()
+
         self.board = self.generate_board()
         self.buttons = []
         self.agent = agent
@@ -23,8 +25,8 @@ class Minesweeper_GUI:
 
         self.revealed_cells = set()
         self.create_widgets()
-        self.window.mainloop()
         self.play_agent()
+
         self.run()
 
     def create_widgets(self):
@@ -116,8 +118,8 @@ class Minesweeper_GUI:
         for i in range(self.height):
             for j in range(self.width):
                 self.buttons[i][j].config(state="disabled")
-        self.root.update()
-        self.root.after(10)  # 100 milliseconds delay
+        self.window.update()
+        self.window.after(10)  # 100 milliseconds delay
 
     def reveal_cell(self, row, col):
         if not self._game_end and self.buttons[row][col]['state'] in (tk.NORMAL, tk.ACTIVE):
@@ -181,6 +183,8 @@ class Minesweeper_GUI:
         if action_type == 0:  # Reveal
             if self.buttons[row][col]['state'] in (tk.NORMAL, tk.ACTIVE):
                 self.on_button_click(row, col)
+                print(f"Agent revealed cell ({row}, {col})")
+
         elif action_type == 1:  # Flag (skip this action for now)
             pass
 
@@ -198,9 +202,17 @@ class Minesweeper_GUI:
         # Update the GUI to reflect the agent's actions
         self.update_board()
         self.stats_label.config(text=self.get_statistics_text())
-        self.root.update()
+        self.window.update()
+        print(f"Agent action: ({row}, {col}, {action_type}), Reward: {reward}")
 
         return self.check_win() or self.board[row][col] == "*", reward, next_state
+
+    def update_board(self):
+        for i in range(self.height):
+            for j in range(self.width):
+                if (i, j) in self.revealed_cells:
+                    self.buttons[i][j].config(
+                        text=self.board[i][j], state=tk.DISABLED)
 
     def get_current_state(self):
         current_state = []
@@ -215,7 +227,7 @@ class Minesweeper_GUI:
         return current_state
 
     def run(self):
-        self.root.mainloop()
+        self.window.mainloop()
 
     def check_win(self):
         non_mine_cells = self.height * self.width - self.mines
@@ -226,30 +238,24 @@ class Minesweeper_GUI:
         return self._game_end
 
     def play_agent(self):
-        while True:  # Change the outer loop condition to True
-            while not self.game_end:
-                valid_action = False
-                while not valid_action:
-                    action = self.agent.choose_action(self.get_current_state())
-                    game_over, reward, next_state = self.perform_action(action)
-                    if self.buttons[action[0]][action[1]]['state'] == tk.DISABLED:
-                        valid_action = True
-                    else:
-                        valid_action = False
-                        reward = -0.1  # Provide a small negative reward for invalid actions
+        if not self.game_end:
+            valid_action = False
+            while not valid_action:
+                print("Before agent chooses action")
+                action = self.agent.choose_action(self.get_current_state())
+                print(f"Action chosen by agent: {action}")
+                game_over, reward, next_state = self.perform_action(action)
+                if self.buttons[action[0]][action[1]]['state'] == tk.DISABLED:
+                    valid_action = True
+                else:
+                    valid_action = False
+                    reward = -0.1  # Provide a small negative reward for invalid actions
 
-                    if valid_action:
-                        self.move_counter += 1  # Increment the move counter only for valid actions
+                if valid_action:
+                    self.move_counter += 1  # Increment the move counter only for valid actions
 
-                self.agent.update(self.get_current_state(), action,
-                                  next_state, reward, game_over)
-                # Update the move label
-                self.move_label.config(text=f'Moves: {self.move_counter}')
-                self.root.update()
-                self.root.after(100)  # 100 milliseconds delay
-
-            # Reset the game when the game ends
-            self.reset_board()
-            self.revealed_cells.clear()
-
-
+            self.agent.update(self.get_current_state(), action,
+                              next_state, reward, game_over)
+            # Update the move label
+            # Schedule the next move after 100ms
+            self.window.after(100, self.play_agent)

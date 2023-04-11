@@ -1,5 +1,5 @@
 import tkinter as tk
-from mineSweep_GUI import MinesweeperGUI
+from mineSweep_GUI import Minesweeper_GUI
 from mineSweep_agent import MinesweeperAgent
 
 num_episodes = 10000
@@ -9,9 +9,9 @@ agent = MinesweeperAgent(height, width, num_mines)
 
 for episode in range(num_episodes):
     print(f"Episode {episode + 1}")
-    gui = MinesweeperGUI(height, width, num_mines, agent)
+    gui = Minesweeper_GUI(height, width, num_mines, agent)
 
-    gui.play_agent()  # Call the play_agent method
+    # Don't call play_agent() here, it's already called in the __init__() method
 
     # Print the number of moves
     print(f"Number of moves in episode {episode + 1}: {gui.move_counter}")
@@ -23,7 +23,7 @@ for episode in range(num_episodes):
         agent.save("q_table.npy")
 
     # Close the current game window
-    gui.root.destroy()
-
-# Save the final Q-table
-agent.save("q_table.npy")
+    try:
+        gui.window.destroy()
+    except:
+        pass
