@@ -157,6 +157,9 @@ class Minesweeper_GUI:
         self.total_moves = 0
         self.stats_label.config(text=self.get_statistics_text())
 
+        # Update the board appearance
+        self.update_board()
+
     def toggle_flag(self, event, row, col):
         button = self.buttons[row][col]
         if button['text'] == "":
@@ -259,3 +262,5 @@ class Minesweeper_GUI:
             # Update the move label
             # Schedule the next move after 100ms
             self.window.after(100, self.play_agent)
+            self.reset_board()
+            self.revealed_cells.clear()
