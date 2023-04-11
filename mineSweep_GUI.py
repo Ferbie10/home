@@ -1,67 +1,41 @@
 import tkinter as tk
 import random
+import time
 
 
-class MinesweeperGUI:
+class Minesweeper_GUI:
     def __init__(self, height, width, mines, agent):
+        self.window = tk.Tk()
+        self.total_moves = 0
+        self.total_games = 0
+        self.best_score = None
+        self.start_time = time.time()
         self.height = height
         self.width = width
         self.mines = mines
-        self._game_end = False
-        self.episode_moves = []
-
         self.board = self.generate_board()
-        self.root = tk.Tk()
-        self.root.title("Minesweeper")
+        self.buttons = []
         self.agent = agent
-        self.revealed_cells = set()
-
-        self.canvas = tk.Canvas(self.root)
-        self.canvas.grid(row=0, column=self.width+1,
-                         rowspan=self.height, sticky=tk.N + tk.S + tk.E + tk.W)
-
-        self.scrollbar = tk.Scrollbar(self.root, command=self.canvas.yview)
-        self.scrollbar.grid(row=0, column=self.width+2,
-                            rowspan=self.height, sticky=tk.N + tk.S)
-
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
-        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
-
-        self.frame = tk.Frame(self.canvas)
-        self.canvas.create_window((0, 0), window=self.frame, anchor=tk.NW)
-
-        self.episode_moves_label = tk.Label(
-            self.frame, text='', justify=tk.LEFT)
-        self.episode_moves_label.pack()
-
-        self.buttons = [
-            [tk.Button(self.root, text='', command=lambda row=i, col=j: self.on_button_click(row, col), width=2, height=1, font=("Arial", 10))
-             for j in range(self.width)] for i in range(self.height)]
-        for i in range(self.height):
-            for j in range(self.width):
-                self.buttons[i][j].grid(row=i, column=j)
-                self.root.grid_columnconfigure(j, weight=0, minsize=0)
-                self.root.grid_rowconfigure(i, weight=0, minsize=0)
-
         self.move_counter = 0
-        self.move_label = tk.Label(
-            self.root, text=f'Moves: {self.move_counter}')
-        self.move_label.grid(row=self.height, column=0,
-                             columnspan=self.width, sticky=tk.W)
-        self.round_counter = 1
-        self.round_label = tk.Label(
-            self.root, text=f'Round: {self.round_counter}')
-        self.round_label.grid(row=self.height, column=5,
-                              columnspan=self.width, sticky=tk.E)
-        self.play_agent()
 
+        self._game_end = False
+        self.window.title("Minesweeper")
+
+        self.revealed_cells = set()
+        self.create_widgets()
+        self.window.mainloop()
+        self.play_agent()
         self.run()
 
-    # The rest of the code remains unchanged
+    def create_widgets(self):
+        frame1 = tk.Frame(master=self.window, width=800, height=800, bg="grey")
+        frame1.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
 
-    # Add this method to update the canvas scrollregion
-    def update_scrollregion(self):
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        frame2 = tk.Frame(master=self.window, width=400, bg="black")
+        frame2.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
+
+        self.create_minesweeper(frame1)
+        self.create_statistics(frame2)
 
     def generate_board(self):
         board = [[0 for _ in range(self.width)] for _ in range(self.height)]
@@ -90,46 +64,103 @@ class MinesweeperGUI:
 
         return board
 
-    def _on_mousewheel(self, event):
-        self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
+    def create_minesweeper(self, frame):
+        for i in range(self.height):
+            row_buttons = []
+            for j in range(self.width):
+                button = tk.Button(frame, text="", width=3, height=1,
+                                   command=lambda i=i, j=j: self.reveal_cell(
+                                       i, j),
+                                   highlightthickness=0)  # Add highlightthickness option
+                button.bind("<Button-3>", lambda event, i=i,
+                            j=j: self.toggle_flag(event, i, j))
+                button.grid(row=i, column=j)
+                row_buttons.append(button)
+            self.buttons.append(row_buttons)
+
+    def toggle_flag_mode(self, event):
+        self.flag_mode = not self.flag_mode
+
+    def create_statistics(self, frame):
+        self.stats_label = tk.Label(
+            frame, text=self.get_statistics_text(), justify=tk.LEFT)
+        self.stats_label.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
+
+    def get_statistics_text(self):
+        elapsed_time = int(time.time() - self.start_time)
+        best_score = self.best_score if self.best_score is not None else "N/A"
+        return f"Total games: {self.total_games}\nTotal moves: {self.total_moves}\nElapsed time: {elapsed_time}s\nBest score: {best_score}"
 
     def on_button_click(self, row, col):
+        if self.board[row][col] == "*":
+            self.reset_board()  # Reset the board if a mine cell is clicked
+            return
+
         # Reveal the clicked button and its adjacent cells if needed
         self.reveal_cell(row, col)
 
         # Update the displayed board
         self.update_board()
 
-        # Check if the game has ended (win or lose)
-        if self.check_win() or self.board[row][col] == "*":
+        if self.check_win():
             self._game_end = True
 
-            # Show the mines
-            for i in range(self.height):
-                for j in range(self.width):
-                    if self.board[i][j] == "*":
-                        self.buttons[i][j].config(
-                            text="*", state="disabled", bg="red")
+        # Show the mines
+        for i in range(self.height):
+            for j in range(self.width):
+                if self.board[i][j] == "*":
+                    self.buttons[i][j].config(
+                        text="*", state="disabled", bg="red")
 
-            # Disable all buttons
-            for i in range(self.height):
-                for j in range(self.width):
-                    self.buttons[i][j].config(state="disabled")
-            self.root.update()
-            self.root.after(10)  # 100 milliseconds delay
+        # Disable all buttons
+        for i in range(self.height):
+            for j in range(self.width):
+                self.buttons[i][j].config(state="disabled")
+        self.root.update()
+        self.root.after(10)  # 100 milliseconds delay
 
     def reveal_cell(self, row, col):
-        if not self._game_end and self.board[row][col] != '*' and self.buttons[row][col]['state'] in (tk.NORMAL, tk.ACTIVE):
+        if not self._game_end and self.buttons[row][col]['state'] in (tk.NORMAL, tk.ACTIVE):
+            if self.board[row][col] == "*":  # Handle mine cell click
+                self.reset_board()
+                return
+
             # Convert the number to a string
             self.buttons[row][col].config(
-                text=str(self.board[row][col]), width=2, height=1)
+                text=str(self.board[row][col]), width=3, height=1)  # Set the width to 3
             self.buttons[row][col].config(state=tk.DISABLED)
             self.revealed_cells.add((row, col))
             if self.board[row][col] == 0:
                 for i in range(-1, 2):
                     for j in range(-1, 2):
-                        if 0 <= row + i < self.height and 0 <= col + j < self.width:
+                        if 0 <= row + i < self.height and 0 <= col + j < self.width and (row + i, col + j) not in self.revealed_cells:
                             self.reveal_cell(row + i, col + j)
+
+    def reset_board(self):
+        self.board = self.generate_board()
+        self._game_end = False
+        self.revealed_cells.clear()
+
+        for i in range(self.height):
+            for j in range(self.width):
+                button = self.buttons[i][j]
+                button.config(text="", state=tk.NORMAL, bg=None)
+        self.window.focus_set()
+
+        # Update the statistics label
+        self.total_games += 1
+        elapsed_time = int(time.time() - self.start_time)
+        if self.best_score is None or self.total_moves < self.best_score:
+            self.best_score = self.total_moves
+        self.total_moves = 0
+        self.stats_label.config(text=self.get_statistics_text())
+
+    def toggle_flag(self, event, row, col):
+        button = self.buttons[row][col]
+        if button['text'] == "":
+            button.config(text="F", bg="yellow")
+        elif button['text'] == "F":
+            button.config(text="", bg=None)
 
     def get_current_state(self):
         current_state = []
@@ -166,57 +197,20 @@ class MinesweeperGUI:
 
         return self.check_win() or self.board[row][col] == "*", reward, next_state
 
-    def update_board(self):
+    def get_current_state(self):
+        current_state = []
         for i in range(self.height):
+            row = []
             for j in range(self.width):
                 if (i, j) in self.revealed_cells:
-                    self.buttons[i][j].config(
-                        text=self.board[i][j], state=tk.DISABLED)
+                    row.append(self.board[i][j])
+                else:
+                    row.append(-1)
+            current_state.append(row)
+        return current_state
 
-    def update_episode_moves_label(self):
-        episode_moves_text = '\n'.join(
-            [f'Episode {i + 1}: {moves}' for i, moves in enumerate(self.episode_moves)])
-        self.episode_moves_label.config(text=episode_moves_text)
-
-    def reset_board(self):
-        # Destroy all the buttons
-        for row in self.buttons:
-            for button in row:
-                button.destroy()
-        self._game_end = False
-
-        # Update the episode_moves_label text
-        self.episode_moves.append(self.move_counter)
-        self.update_episode_moves_label()
-
-        # Reset the move counter and update the label
-        self.move_counter = 0
-        self.move_label.config(text=f'Moves: {self.move_counter}')
-
-        # Increment the round counter and update the round label
-        self.round_counter += 1
-        self.round_label.config(text=f'Round: {self.round_counter}')
-
-        # Create a new board
-        self.board = self.generate_board()
-
-        # Recreate the buttons
-        self.buttons = [
-            [tk.Button(self.root, text='', command=lambda row=i, col=j: self.on_button_click(row, col), width=2, height=1, font=("Arial", 10))
-             for j in range(self.width)] for i in range(self.height)]
-
-        for i in range(self.height):
-            for j in range(self.width):
-                self.buttons[i][j].grid(
-                    row=i, column=j, sticky=tk.N + tk.S + tk.E + tk.W)
-
-    def update_episode_moves_label(self):
-        episode_moves_text = '\n'.join(
-            [f'Episode {i + 1}: {moves}' for i, moves in enumerate(self.episode_moves)])
-        self.episode_moves_label.config(text=episode_moves_text)
-        # Update the scrollregion
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        self.frame.update_idletasks()
+    def run(self):
+        self.root.mainloop()
 
     def check_win(self):
         non_mine_cells = self.height * self.width - self.mines
@@ -225,9 +219,6 @@ class MinesweeperGUI:
     @property
     def game_end(self):
         return self._game_end
-
-    def run(self):
-        self.root.mainloop()
 
     def play_agent(self):
         while True:  # Change the outer loop condition to True
@@ -255,3 +246,4 @@ class MinesweeperGUI:
             # Reset the game when the game ends
             self.reset_board()
             self.revealed_cells.clear()
+
