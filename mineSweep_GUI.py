@@ -89,8 +89,10 @@ class MinesweeperGUI:
                 board[row][col] = mines_count
 
         return board
+
     def _on_mousewheel(self, event):
         self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
+
     def on_button_click(self, row, col):
         # Reveal the clicked button and its adjacent cells if needed
         self.reveal_cell(row, col)
@@ -117,10 +119,10 @@ class MinesweeperGUI:
             self.root.after(100)  # 100 milliseconds delay
 
     def reveal_cell(self, row, col):
-
-        if self.board[row][col] != '*' and self.buttons[row][col]['state'] in (tk.NORMAL, tk.ACTIVE):
+        if not self._game_end and self.board[row][col] != '*' and self.buttons[row][col]['state'] in (tk.NORMAL, tk.ACTIVE):
             # Convert the number to a string
-            self.buttons[row][col].config(text=str(self.board[row][col]))
+            self.buttons[row][col].config(
+                text=str(self.board[row][col]), width=2, height=1)
             self.buttons[row][col].config(state=tk.DISABLED)
             self.revealed_cells.add((row, col))
             if self.board[row][col] == 0:
@@ -148,7 +150,6 @@ class MinesweeperGUI:
         if action_type == 0:  # Reveal
             if self.buttons[row][col]['state'] in (tk.NORMAL, tk.ACTIVE):
                 self.on_button_click(row, col)
-                self.move_counter += 1  # Increment the move counter only for valid reveal actions
         elif action_type == 1:  # Flag (skip this action for now)
             pass
 
@@ -201,7 +202,7 @@ class MinesweeperGUI:
 
         # Recreate the buttons
         self.buttons = [
-            [tk.Button(self.root, text='', command=lambda row=i, col=j: self.on_button_click(row, col))
+            [tk.Button(self.root, text='', command=lambda row=i, col=j: self.on_button_click(row, col), width=2, height=1, font=("Arial", 10))
              for j in range(self.width)] for i in range(self.height)]
 
         for i in range(self.height):

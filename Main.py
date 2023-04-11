@@ -2,8 +2,8 @@ import tkinter as tk
 from mineSweep_GUI import MinesweeperGUI
 from mineSweep_agent import MinesweeperAgent
 
-num_episodes = 1000
-height, width, num_mines = 10, 10, 20
+num_episodes = 10000
+height, width, num_mines = 15, 15, 35
 
 agent = MinesweeperAgent(height, width, num_mines)
 
