@@ -186,14 +186,19 @@ class Minesweeper_GUI:
 
         # Compute the reward based on the game result
         if self.check_win():
-            reward = 10
+            reward = 1
         elif self.board[row][col] == "*":
-            reward = -10
+            reward = -1
         else:
             reward = .02
 
         # Get the next state after performing the action
         next_state = self.get_current_state()
+
+        # Update the GUI to reflect the agent's actions
+        self.update_board()
+        self.stats_label.config(text=self.get_statistics_text())
+        self.root.update()
 
         return self.check_win() or self.board[row][col] == "*", reward, next_state
 
@@ -246,4 +251,5 @@ class Minesweeper_GUI:
             # Reset the game when the game ends
             self.reset_board()
             self.revealed_cells.clear()
+
 
