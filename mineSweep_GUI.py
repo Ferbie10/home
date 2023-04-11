@@ -116,7 +116,7 @@ class MinesweeperGUI:
                 for j in range(self.width):
                     self.buttons[i][j].config(state="disabled")
             self.root.update()
-            self.root.after(100)  # 100 milliseconds delay
+            self.root.after(10)  # 100 milliseconds delay
 
     def reveal_cell(self, row, col):
         if not self._game_end and self.board[row][col] != '*' and self.buttons[row][col]['state'] in (tk.NORMAL, tk.ACTIVE):
