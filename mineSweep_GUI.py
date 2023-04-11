@@ -13,8 +13,6 @@ class Minesweeper_GUI:
         self.height = height
         self.width = width
         self.mines = mines
-        self.revealed_cells = set()
-
         self.board = self.generate_board()
         self.buttons = []
         self.agent = agent
@@ -146,7 +144,9 @@ class Minesweeper_GUI:
         for i in range(self.height):
             for j in range(self.width):
                 button = self.buttons[i][j]
-                button.config(text="", state=tk.NORMAL, bg=None)
+                # Change bg=None to bg="SystemButtonFace"
+                button.config(text="", state=tk.NORMAL, bg="grey")
+
         self.window.focus_set()
 
         # Update the statistics label
@@ -256,11 +256,19 @@ class Minesweeper_GUI:
 
                 if valid_action:
                     self.move_counter += 1  # Increment the move counter only for valid actions
+                    self.total_moves += 1  # Increment the total moves counter
+                print(f"Move Counter: {self.move_counter}")
+                print(f"Total Move Counter: {self.total_moves}")
 
             self.agent.update(self.get_current_state(), action,
                               next_state, reward, game_over)
+
             # Update the move label
             # Schedule the next move after 100ms
-            self.window.after(100, self.play_agent)
-            self.reset_board()
-            self.revealed_cells.clear()
+            if not game_over:
+                self.window.after(100, self.play_agent)
+            else:
+                self.reset_board()
+                self.revealed_cells.clear()
+                # Update the statistics text
+                self.stats_label.config(text=self.get_statistics_text())
