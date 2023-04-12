@@ -7,8 +7,9 @@ class Minesweeper_GUI:
     def __init__(self, height, width, mines, agent, num_episodes):
         self.window = tk.Tk()
         self.total_moves = 0
-        self.total_games = 0
         self.best_score = None
+        self.best_reward = None
+        self.best_reward_episode = None
         self.start_time = time.time()
         self.height = height
         self.width = width
@@ -31,7 +32,6 @@ class Minesweeper_GUI:
             self.play_agent()
             if episode < num_episodes - 1:  # No need to reset after the last episode
                 # Add a delay before resetting the board
-                self.window.after(1000, self.reset_board)
                 self.window.after(1000, self.revealed_cells.clear)
                 self.window.after(1000, lambda: self.stats_label.config(
                     text=self.get_statistics_text()))
@@ -100,7 +100,9 @@ class Minesweeper_GUI:
     def get_statistics_text(self):
         elapsed_time = int(time.time() - self.start_time)
         best_score = self.best_score if self.best_score is not None else "N/A"
-        return f"Total games: {self.total_games}\nTotal moves: {self.total_moves}\nElapsed time: {elapsed_time}s\nBest score: {best_score}"
+        best_reward = self.best_reward if self.best_reward is not None else "N/A"
+        best_reward_episode = self.best_reward_episode if self.best_reward_episode is not None else "N/A"
+        return f"Total games: {self.num_episodes}\nTotal moves: {self.total_moves}\nElapsed time: {elapsed_time}s\nBest score: {best_score}\nBest reward: {best_reward}\nBest reward episode: {best_reward_episode}"
 
     def on_button_click(self, row, col):
         if self.board[row][col] == "*":
@@ -161,7 +163,6 @@ class Minesweeper_GUI:
         self.window.focus_set()
 
         # Update the statistics label
-        self.total_games += 1
         elapsed_time = int(time.time() - self.start_time)
         if self.best_score is None or self.total_moves > self.best_score:
             self.best_score = self.total_moves
@@ -201,19 +202,21 @@ class Minesweeper_GUI:
 
         elif action_type == 1:  # Flag
             if self.board[row][col] == "*":  # Correctly flagged mine
-                reward = 0.5
+                reward = .05
                 self.buttons[row][col].config(text="F", state=tk.DISABLED)
                 self.revealed_cells.add((row, col))
                 print(f"Agent correctly flagged cell ({row}, {col})")
             else:  # Incorrectly flagged cell
-                reward = -0.1
+                reward = -0.02
                 print(f"Agent incorrectly flagged cell ({row}, {col})")
 
         # Compute the reward based on the game result
         if self.check_win():
-            reward = 1
+            reward = 5
+            self._game_end = True  # Set the game end flag
         elif self.board[row][col] == "*":
             reward = -1
+            self._game_end = True  # Set the game end flag
         else:
             if action_type != 1:  # Only assign this reward for non-flagging actions
                 reward = 0.02
@@ -222,7 +225,7 @@ class Minesweeper_GUI:
         next_state = self.get_current_state()
 
         # Update the GUI to reflect the agent's actions
-        self.update_board()  # Move this line outside the if block
+        self.update_board()
         self.stats_label.config(text=self.get_statistics_text())
         self.window.update()
         print(f"Agent action: ({row}, {col}, {action_type}), Reward: {reward}")
@@ -278,10 +281,11 @@ class Minesweeper_GUI:
             self.agent.update(self.get_current_state(), action,
                               reward, self.get_current_state())
 
-            # Increment the total_games counter
-            self.total_games += 1
-
         if self.game_end and self.current_episode < self.num_episodes:
+            # Update the best_reward and best_reward_episode here
+            if self.best_reward is None or reward > self.best_reward:
+                self.best_reward = reward
+                self.best_reward_episode = self.current_episode
             self.current_episode += 1
             print(f"Episode {self.current_episode}")
             self.reset_board()
