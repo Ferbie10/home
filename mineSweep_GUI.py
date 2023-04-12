@@ -3,12 +3,8 @@ import random
 import time
 
 
-def flatten_state(state):
-    return tuple(cell for row in state for cell in row)
-
-
 class Minesweeper_GUI:
-    def __init__(self, height, width, mines, agent):
+    def __init__(self, height, width, mines, agent, num_episodes):
         self.window = tk.Tk()
         self.total_moves = 0
         self.total_games = 0
@@ -20,14 +16,25 @@ class Minesweeper_GUI:
         self.board = self.generate_board()
         self.buttons = []
         self.agent = agent
+        self.current_episode = 1
+        self.num_episodes = num_episodes
         self.move_counter = 0
-
         self._game_end = False
         self.window.title("Minesweeper")
 
         self.revealed_cells = set()
         self.create_widgets()
-        self.play_agent()
+
+    def start_game(self, num_episodes):
+        for episode in range(num_episodes):
+            print(f"Episode {episode + 1}")
+            self.play_agent()
+            if episode < num_episodes - 1:  # No need to reset after the last episode
+                # Add a delay before resetting the board
+                self.window.after(1000, self.reset_board)
+                self.window.after(1000, self.revealed_cells.clear)
+                self.window.after(1000, lambda: self.stats_label.config(
+                    text=self.get_statistics_text()))
 
         self.run()
 
@@ -156,7 +163,7 @@ class Minesweeper_GUI:
         # Update the statistics label
         self.total_games += 1
         elapsed_time = int(time.time() - self.start_time)
-        if self.best_score is None or self.total_moves < self.best_score:
+        if self.best_score is None or self.total_moves > self.best_score:
             self.best_score = self.total_moves
         self.total_moves = 0
         self.stats_label.config(text=self.get_statistics_text())
@@ -189,7 +196,7 @@ class Minesweeper_GUI:
 
         if action_type == 0:  # Reveal
             if self.buttons[row][col]['state'] in (tk.NORMAL, tk.ACTIVE):
-                self.on_button_click(row, col)
+                self.reveal_cell(row, col)
                 print(f"Agent revealed cell ({row}, {col})")
 
         elif action_type == 1:  # Flag
@@ -215,7 +222,7 @@ class Minesweeper_GUI:
         next_state = self.get_current_state()
 
         # Update the GUI to reflect the agent's actions
-        self.update_board()
+        self.update_board()  # Move this line outside the if block
         self.stats_label.config(text=self.get_statistics_text())
         self.window.update()
         print(f"Agent action: ({row}, {col}, {action_type}), Reward: {reward}")
@@ -256,9 +263,7 @@ class Minesweeper_GUI:
         if not self.game_end:
             valid_action = False
             while not valid_action:
-                print("Before agent chooses action")
                 action = self.agent.choose_action(self.get_current_state())
-                print(f"Action chosen by agent: {action}")
                 game_over, reward, next_state = self.perform_action(action)
                 if self.buttons[action[0]][action[1]]['state'] == tk.DISABLED:
                     valid_action = True
@@ -269,24 +274,17 @@ class Minesweeper_GUI:
                 if valid_action:
                     self.move_counter += 1  # Increment the move counter only for valid actions
                     self.total_moves += 1  # Increment the total moves counter
-                print(f"Move Counter: {self.move_counter}")
-                print(f"Total Move Counter: {self.total_moves}")
-            print("Next state:", next_state)
 
             self.agent.update(self.get_current_state(), action,
                               reward, self.get_current_state())
 
-            # Schedule the next move after 100ms
-            if not game_over:
-                self.window.after(100, self.play_agent)
-            else:
-                # Increment the total_games counter
-                self.total_games += 1
+            # Increment the total_games counter
+            self.total_games += 1
 
-                # Add a delay before resetting the board
-                self.window.after(1000, self.reset_board)
-                self.window.after(1000, self.revealed_cells.clear)
-                self.window.after(1000, lambda: self.stats_label.config(
-                    text=self.get_statistics_text()))
-                # Schedule the next game after the delay
-                self.window.after(1000, self.play_agent)
+        if self.game_end and self.current_episode < self.num_episodes:
+            self.current_episode += 1
+            print(f"Episode {self.current_episode}")
+            self.reset_board()
+            self.revealed_cells.clear()
+            self.stats_label.config(text=self.get_statistics_text())
+            self.window.after(1000, self.play_agent)
