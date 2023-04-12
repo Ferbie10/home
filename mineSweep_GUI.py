@@ -10,6 +10,7 @@ class Minesweeper_GUI:
         self.best_score = None
         self.best_reward = None
         self.best_reward_episode = None
+        self.total_reward = 0
         self.start_time = time.time()
         self.height = height
         self.width = width
@@ -26,11 +27,10 @@ class Minesweeper_GUI:
         self.revealed_cells = set()
         self.create_widgets()
 
-    def start_game(self, num_episodes):
-        for episode in range(num_episodes):
-            print(f"Episode {episode + 1}")
+    def start_game(self):
+        for episode in range(self.num_episodes):
             self.play_agent()
-            if episode < num_episodes - 1:  # No need to reset after the last episode
+            if episode < self.num_episodes - 1:  # No need to reset after the last episode
                 # Add a delay before resetting the board
                 self.window.after(1000, self.revealed_cells.clear)
                 self.window.after(1000, lambda: self.stats_label.config(
@@ -102,7 +102,7 @@ class Minesweeper_GUI:
         best_score = self.best_score if self.best_score is not None else "N/A"
         best_reward = self.best_reward if self.best_reward is not None else "N/A"
         best_reward_episode = self.best_reward_episode if self.best_reward_episode is not None else "N/A"
-        return f"Total games: {self.num_episodes}\nTotal moves: {self.total_moves}\nElapsed time: {elapsed_time}s\nBest score: {best_score}\nBest reward: {best_reward}\nBest reward episode: {best_reward_episode}"
+        return f"Total games: {self.current_episode}\nTotal moves: {self.total_moves}\nElapsed time: {elapsed_time}s\nBest score: {self.best_score}\nBest reward: {self.best_reward}\nBest reward episode: {self.best_reward_episode}"
 
     def on_button_click(self, row, col):
         if self.board[row][col] == "*":
@@ -166,6 +166,7 @@ class Minesweeper_GUI:
         elapsed_time = int(time.time() - self.start_time)
         if self.best_score is None or self.total_moves > self.best_score:
             self.best_score = self.total_moves
+        self.total_reward = 0
         self.total_moves = 0
         self.stats_label.config(text=self.get_statistics_text())
 
@@ -198,24 +199,21 @@ class Minesweeper_GUI:
         if action_type == 0:  # Reveal
             if self.buttons[row][col]['state'] in (tk.NORMAL, tk.ACTIVE):
                 self.reveal_cell(row, col)
-                print(f"Agent revealed cell ({row}, {col})")
 
         elif action_type == 1:  # Flag
             if self.board[row][col] == "*":  # Correctly flagged mine
-                reward = .05
+                reward = .75
                 self.buttons[row][col].config(text="F", state=tk.DISABLED)
                 self.revealed_cells.add((row, col))
-                print(f"Agent correctly flagged cell ({row}, {col})")
             else:  # Incorrectly flagged cell
-                reward = -0.02
-                print(f"Agent incorrectly flagged cell ({row}, {col})")
+                reward = -0.25
 
         # Compute the reward based on the game result
         if self.check_win():
-            reward = 5
+            reward = 2
             self._game_end = True  # Set the game end flag
         elif self.board[row][col] == "*":
-            reward = -1
+            reward = -.5
             self._game_end = True  # Set the game end flag
         else:
             if action_type != 1:  # Only assign this reward for non-flagging actions
@@ -228,7 +226,6 @@ class Minesweeper_GUI:
         self.update_board()
         self.stats_label.config(text=self.get_statistics_text())
         self.window.update()
-        print(f"Agent action: ({row}, {col}, {action_type}), Reward: {reward}")
 
         return self.game_end, reward, next_state
 
@@ -277,17 +274,20 @@ class Minesweeper_GUI:
                 if valid_action:
                     self.move_counter += 1  # Increment the move counter only for valid actions
                     self.total_moves += 1  # Increment the total moves counter
-
+                    self.total_reward = self.total_reward + reward
             self.agent.update(self.get_current_state(), action,
                               reward, self.get_current_state())
 
         if self.game_end and self.current_episode < self.num_episodes:
             # Update the best_reward and best_reward_episode here
-            if self.best_reward is None or reward > self.best_reward:
-                self.best_reward = reward
+            if self.best_reward is None or self.total_reward > self.best_reward:
+                self.best_reward = self.total_reward
+
                 self.best_reward_episode = self.current_episode
+
             self.current_episode += 1
-            print(f"Episode {self.current_episode}")
+            print(
+                f"Episode {self.current_episode} Reward {self.total_reward} Best reward {self.best_reward} Best reward episode {self.best_reward_episode}")
             self.reset_board()
             self.revealed_cells.clear()
             self.stats_label.config(text=self.get_statistics_text())
