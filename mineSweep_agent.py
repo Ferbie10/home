@@ -18,6 +18,15 @@ class MinesweeperAgent:
         # 2 actions: reveal and flag
         self.q_table = np.zeros((height, width, 2))
 
+    def _initialize_state(self, state_key):
+        self.q_table[state_key] = np.zeros(2)
+
+    def _state_key_exists(self, state_key):
+        for key in self.q_table:
+            if np.array_equal(state_key, key):
+                return True
+        return False
+
     def choose_action(self, state):
         # Explore with probability epsilon
         if random.uniform(0, 1) < self.exploration_rate:
@@ -43,20 +52,28 @@ class MinesweeperAgent:
             return best_action
 
     def learn(self, state, action, reward, next_state):
-        # Unpack the state and action
-        row, col, action_type = action
+        print("state:", state)
+        print("action:", action)
+        print("next_state:", next_state)
+        state_key = self.flatten_state(state)
+        next_state_key = self.flatten_state(next_state)
+        action_index = self.action_to_index(action, self.width)
 
-        # Get the current Q-value
-        current_q_value = self.q_table[row, col, action_type]
+        # Initialize state_key in the q_table if not present
+        if not self._state_key_exists(state_key):
+            self._initialize_state(state_key)
 
-        # Calculate the maximum Q-value for the next state
-        max_next_q_value = np.max(self.q_table[next_state])
+        current_q_value = self.q_table[state_key][action_index]
 
-        # Calculate the temporal difference (TD) error
-        td_error = reward + self.discount_factor * max_next_q_value - current_q_value
+        # Initialize next_state_key in the q_table if not present
+        if not self._state_key_exists(next_state_key):
+            self._initialize_state(next_state_key)
 
-        # Update the Q-table
-        self.q_table[row, col, action_type] += self.learning_rate * td_error
+        max_next_q_value = np.max(self.q_table[next_state_key])
+
+        new_q_value = current_q_value + self.learning_rate * \
+            (reward + self.discount_factor * max_next_q_value - current_q_value)
+        self.q_table[state_key][action_index] = new_q_value
 
     def decay_exploration_rate(self):
         # Update the exploration rate
@@ -71,6 +88,13 @@ class MinesweeperAgent:
         # Load the Q-table from a file
         self.q_table = np.load(filename)
 
-    def update(self, state, action, next_state, reward, game_over):
+    def update(self, state, action, reward, next_state):
         self.learn(state, action, reward, next_state)
-        self.decay_exploration_rate()
+
+    def flatten_state(self, state):
+        return tuple(cell for row in state for cell in row)
+
+    def action_to_index(self, action, num_columns):
+        row, col, _ = action
+        index = row * num_columns + col
+        return index

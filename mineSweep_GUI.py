@@ -3,6 +3,10 @@ import random
 import time
 
 
+def flatten_state(state):
+    return tuple(cell for row in state for cell in row)
+
+
 class Minesweeper_GUI:
     def __init__(self, height, width, mines, agent):
         self.window = tk.Tk()
@@ -188,8 +192,15 @@ class Minesweeper_GUI:
                 self.on_button_click(row, col)
                 print(f"Agent revealed cell ({row}, {col})")
 
-        elif action_type == 1:  # Flag (skip this action for now)
-            pass
+        elif action_type == 1:  # Flag
+            if self.board[row][col] == "*":  # Correctly flagged mine
+                reward = 0.5
+                self.buttons[row][col].config(text="F", state=tk.DISABLED)
+                self.revealed_cells.add((row, col))
+                print(f"Agent correctly flagged cell ({row}, {col})")
+            else:  # Incorrectly flagged cell
+                reward = -0.1
+                print(f"Agent incorrectly flagged cell ({row}, {col})")
 
         # Compute the reward based on the game result
         if self.check_win():
@@ -197,7 +208,8 @@ class Minesweeper_GUI:
         elif self.board[row][col] == "*":
             reward = -1
         else:
-            reward = .02
+            if action_type != 1:  # Only assign this reward for non-flagging actions
+                reward = 0.02
 
         # Get the next state after performing the action
         next_state = self.get_current_state()
@@ -208,7 +220,7 @@ class Minesweeper_GUI:
         self.window.update()
         print(f"Agent action: ({row}, {col}, {action_type}), Reward: {reward}")
 
-        return self.check_win() or self.board[row][col] == "*", reward, next_state
+        return self.game_end, reward, next_state
 
     def update_board(self):
         for i in range(self.height):
@@ -259,16 +271,22 @@ class Minesweeper_GUI:
                     self.total_moves += 1  # Increment the total moves counter
                 print(f"Move Counter: {self.move_counter}")
                 print(f"Total Move Counter: {self.total_moves}")
+            print("Next state:", next_state)
 
             self.agent.update(self.get_current_state(), action,
-                              next_state, reward, game_over)
+                              reward, self.get_current_state())
 
-            # Update the move label
             # Schedule the next move after 100ms
             if not game_over:
                 self.window.after(100, self.play_agent)
             else:
-                self.reset_board()
-                self.revealed_cells.clear()
-                # Update the statistics text
-                self.stats_label.config(text=self.get_statistics_text())
+                # Increment the total_games counter
+                self.total_games += 1
+
+                # Add a delay before resetting the board
+                self.window.after(1000, self.reset_board)
+                self.window.after(1000, self.revealed_cells.clear)
+                self.window.after(1000, lambda: self.stats_label.config(
+                    text=self.get_statistics_text()))
+                # Schedule the next game after the delay
+                self.window.after(1000, self.play_agent)
