@@ -280,7 +280,8 @@ class Minesweeper_GUI:
 
             self.agent.update(self.get_current_state(), action,
                               reward, self.get_current_state())
-
+        print(
+            f'Number of Correct Flags {self.total_correct_flags} Episode {self.current_episode} Best Corrrect flag {self.best_correct_flag} Best Flag Episode ')
         # Update the best_reward and best_reward_episode here
         if self.best_reward is None or self.total_reward > self.best_reward:
             self.best_reward = self.total_reward
