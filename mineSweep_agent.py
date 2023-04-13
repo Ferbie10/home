@@ -98,3 +98,4 @@ class MinesweeperAgent:
     def action_to_index(self, action):
         row, col, action_type = action
         return action_type
+    

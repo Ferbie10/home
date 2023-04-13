@@ -8,14 +8,14 @@ def main():
     # height = int(input("\nHeight: "))
     # width = int(input("\nWidth: "))
     # num_mines = int(input('\nNum of mines: '))
-    num_episodes = 10000
+    num_episodes = 1000
     height = 15
     width = 15
-    num_mines = 25
+    num_mines = 35
     agent = MinesweeperAgent(height, width, num_mines)
     gui = Minesweeper_GUI(height, width, num_mines, agent, num_episodes)
     gui.start_game()
-    choice_save = input('Enter 1 to save')
+    choice_save = input('Enter 1 to save:  ')
     if choice_save == 1:
         filename = 'test.ecsv'
         agent.save(filename)
