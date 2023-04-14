@@ -198,24 +198,24 @@ class Minesweeper_GUI:
 
         elif action_type == 1:  # Flag
             if self.board[row][col] == "*":  # Correctly flagged mine
-                reward = .1
+                reward = 2
                 self.buttons[row][col].config(text="F", state=tk.DISABLED)
                 self.revealed_cells.add((row, col))
                 self.total_correct_flags += 1
             else:  # Incorrectly flagged cell
-                reward = -0.25
+                reward = -3
                 self.total_incorrect_flags += 1
             self.total_num_flags += 1
         # Compute the reward based on the game result
         if self.check_win():
-            reward = 2
+            reward = 3
             self._game_end = True  # Set the game end flag
         elif self.board[row][col] == "*":
-            reward = -1
+            reward = -2
             self._game_end = True  # Set the game end flag
         else:
             if action_type != 1:  # Only assign this reward for non-flagging actions
-                reward = 0.05
+                reward = 1
 
         # Get the next state after performing the action
         next_state = self.get_current_state()
@@ -281,7 +281,7 @@ class Minesweeper_GUI:
             self.agent.update(self.get_current_state(), action,
                               reward, self.get_current_state())
         print(
-            f'Number of Correct Flags {self.total_correct_flags} Episode {self.current_episode} Best Corrrect flag {self.best_correct_flag} Best Flag Episode ')
+            f'Number of Correct Flags {self.total_correct_flags} Number of incorrect flags {self.total_incorrect_flags} Total FLags {self.total_num_flags}\nEpisode {self.current_episode} Best Corrrect flag {self.best_correct_flag} Best Flag Episode ')
         # Update the best_reward and best_reward_episode here
         if self.best_reward is None or self.total_reward > self.best_reward:
             self.best_reward = self.total_reward

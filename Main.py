@@ -8,7 +8,7 @@ def main():
     # height = int(input("\nHeight: "))
     # width = int(input("\nWidth: "))
     # num_mines = int(input('\nNum of mines: '))
-    num_episodes = 1000
+    num_episodes = 10000
     height = 15
     width = 15
     num_mines = 35
