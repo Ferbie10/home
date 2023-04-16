@@ -21,8 +21,10 @@ class MinesweeperGUI(tk.Tk):
                     '<Button-3>', lambda event, row=row, col=col: self.right_click(event, row, col))
 
     def perform_action(self, row, col, action_type):
-        observation, reward, done, _ = self.env.step((row, col, action_type))
+        observation, reward, done, _ = self.env.step(action)
         self.update_buttons()
+        reward = reward.numpy()[0]
+        done = done.numpy()[0]
         if done:
             if reward < 0:
                 messagebox.showinfo("Game Over", "You hit a mine!")
@@ -43,16 +45,20 @@ class MinesweeperGUI(tk.Tk):
                     self.buttons[row][col].config(text="F")
                 else:
                     self.buttons[row][col].config(text="")
-
+    def _encode_action(self, row, col, action_type):
+        return row * self.width * 2 + col * 2 + action_type
     def right_click(self, event, row, col):
         if self.env.state[row][col] != 1:
             self.perform_action(row, col, 1)
-
     def update(self, agent_action=None):
         if agent_action is not None:
-            row, col = agent_action // self.env.width, agent_action % self.env.width
-            self.perform_action(row, col, 0)
+            row = agent_action // (self.env.width * 2)
+            col = (agent_action % (self.env.width * 2)) // 2
+            action_type = agent_action % 2
+            self.perform_action(row, col, action_type)
         self.update_buttons()
+
+    
 
     def reset(self):
         self.env.reset()

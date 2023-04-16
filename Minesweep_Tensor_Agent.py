@@ -1,3 +1,4 @@
+import tkinter as tk
 import numpy as np
 import tensorflow as tf
 from Minesweep_Tensor_Env import MinesweeperEnv
@@ -15,16 +16,16 @@ from tf_agents.environments import gym_wrapper
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
 # Hyperparameters
-num_iterations = 5
+num_iterations = 500
 initial_collect_steps = 100
-collect_steps_per_iteration = 1
-replay_buffer_max_length = 1000
+collect_steps_per_iteration = 10
+replay_buffer_max_length = 10
 batch_size = 64
 learning_rate = 1e-3
 log_interval = 200
-num_eval_episodes = 12
-eval_interval = 1000
-num_test_episodes = 10
+num_eval_episodes = 120
+eval_interval = 100
+num_test_episodes = 1000
 # Create Minesweeper environment and its corresponding TensorFlow environment
 env = MinesweeperEnv(15, 15, 30)
 print("Original environment reset:", env.reset())
@@ -64,44 +65,32 @@ initial_policy_state = agent.collect_policy.get_initial_state(
 max_iterations = collect_steps_per_iteration
 
 
-def train(agent, replay_buffer, batch_size):
-    iterator = iter(replay_buffer.as_dataset(
-        num_parallel_calls=3, sample_batch_size=batch_size, num_steps=2).take(1))
-    experience, _ = next(iterator)
-    print("Experience:", experience)
-
-    # Train the agent
-    train_loss = agent.train(experience)
-
-    # Return the loss_info object
-    return train_loss
-
-
-def test_agent(eval_env, agent, num_episodes):
+def test_agent(eval_env, agent, num_episodes, render=True):
     total_reward = 0
+
+
+
     for episode in range(num_episodes):
         time_step = eval_env.reset()
         policy_state = agent.policy.get_initial_state(eval_env.batch_size)
         episode_reward = 0
 
-        print(f"Episode {episode + 1}:")
-
-        gui = MinesweeperGUI(eval_env.pyenv.envs[0])
-        gui.update()
+        if render:
+            gui = MinesweeperGUI(eval_env.pyenv.envs[0])
+            gui.update()
 
         while not time_step.is_last():
             action_step = agent.policy.action(time_step, policy_state)
+            action = action_step.action.numpy()[0]
+
+            if render:
+                gui.update(action)
+                root.update()
+
             time_step = eval_env.step(action_step.action)
             episode_reward += time_step.reward.numpy().sum()
-            print(f"Action: {action_step.action.numpy()}")
-
-            gui.update(action_step.action.numpy()[0])
-
-        print(f"Episode reward: {episode_reward}")
-        print("=" * 30)
 
         total_reward += episode_reward
-        gui.destroy()
 
     return total_reward / num_episodes
 
@@ -117,6 +106,39 @@ for _ in range(int(collect_steps_per_iteration)):
                        policy_state=initial_policy_state, maximum_iterations=max_iterations)
     print(
         f"Action: {collect_driver.policy.action(initial_time_step).action.numpy()}")
+# Initialize root and gui variables
+root = None
+gui = None
+
+if True:  # Set to True if you want to render the GUI during training
+    root = tk.Tk()
+    root.title("Testing Window")
+
+    gui = MinesweeperGUI(train_env.pyenv.envs[0])
+
+
+def train(agent, replay_buffer, batch_size, root=None, gui=None, render=True):
+    iterator = iter(replay_buffer.as_dataset(
+        num_parallel_calls=3, sample_batch_size=batch_size, num_steps=2).take(1))
+    experience, _ = next(iterator)
+    print("Experience:", experience)
+
+    if render:
+        if root is None and gui is None:
+            root = tk.Tk()
+            root.title("Testing Windoasdasdasdasdw")
+
+            gui = MinesweeperGUI(train_env.pyenv.envs[0])
+        gui.update()
+        root.update()
+
+    # Train the agent
+    train_loss = agent.train(experience)
+
+    # Return the loss_info object
+    return train_loss
+
+
 # Main loop
 print("Main loop")
 for iteration in range(num_iterations):
@@ -133,7 +155,8 @@ for iteration in range(num_iterations):
     print("Experience shape:", {k: v.shape if hasattr(
         v, 'shape') else str(v) for k, v in experience._asdict().items()})
 
-    train_loss = train(agent, replay_buffer, batch_size).loss
+    train_loss = train(agent, replay_buffer, batch_size,
+                       root=root, gui=gui).loss
 
     step = agent.train_step_counter.numpy()
 
@@ -141,8 +164,8 @@ for iteration in range(num_iterations):
         print('step = {0}: loss = {1}'.format(step, train_loss))
 
     if step % eval_interval == 0:
-        avg_return = metric_utils.compute_avg_return(
-            eval_env, agent.policy, num_eval_episodes)
+        avg_return = tf_metrics.compute_avg_return(
+            eval_env, agent.policy, num_episodes=num_eval_episodes)
         print('step = {0}: Average Return = {1}'.format(step, avg_return))
 
 # Testing the agent
